@@ -1,0 +1,13 @@
+*.o
+.keepme
+*.so
+*.a
+*.def
+*.tgz
+*.tar.*
+*.dll
+linux-x86_64*
+x86_64-windows*
+x86_64-unix*
+i386-windows*
+*xftd2xx*
