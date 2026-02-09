@@ -6,7 +6,7 @@
 #ifdef __WINESRC__
 #include "unixlib.h"
 
-#include "xftd2xx.h"
+#include "ftd2xx.h"
 
 #include "wine/debug.h"
 
@@ -17,6 +17,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(ftd2xx);
 //a list of FTD product ids to access (in hexidecimal)
 #define FTDprodVar "FTDID"
 
+//Defined here as it is not defined in header if _WIN32 is defined
 FT_STATUS FT_SetVIDPID(DWORD dwVID, DWORD dwPID);
 
 BOOL WINAPI DllMain(

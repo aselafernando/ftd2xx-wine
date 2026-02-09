@@ -2,20 +2,19 @@ WINEDIR = /opt/wine-stable
 WINELIB = $(WINEDIR)/lib/wine
 WINEINC = $(WINEDIR)/include/wine
 
-WINE_INCLUDES = -I$(WINEINC)/windows -I$(WINEINC)/msvcrt -I$(shell dirname $(WINEINC))
+FTD2XX_DIR = linux-x86_64
+WINE_INCLUDES = -I$(WINEINC)/windows -I$(WINEINC)/msvcrt -I$(shell dirname $(WINEINC)) -I$(FTD2XX_DIR)
 FTD2XX_VER=1.4.34
 FTD2XX_TARBALL = libftd2xx-linux-x86_64-$(FTD2XX_VER).tgz
-FTD2XX_DIR = linux-x86_64
 
 LIBNAME = ftd2xx
 
-CC = winegcc
+CC = gcc
 CFLAGS = \
     -m64 \
     -O2 \
     -D__WINESRC__ \
     -DWINE_UNIX_LIB \
-    -D_WIN64 \
     -pipe \
     -fcf-protection=none \
     -fvisibility=hidden \
@@ -33,13 +32,14 @@ CFLAGS = \
     -Wunused-but-set-parameter \
     -Wvla \
     -Wwrite-strings \
-    -Wpointer-arith
+    -Wpointer-arith \
+	-I$(FTD2XX_DIR)
 LDFLAGS = \
     -shared \
     -Wl,-Bsymbolic \
     -Wl,-soname,lib$(LIBNAME).so \
     -Wl,-z,defs \
-    -L$(WINELIB)/x86_64-unix -l:ntdll.so libxftd2xx.a
+    -L$(WINELIB)/x86_64-unix -l:ntdll.so
 UNIX_DIR = x86_64-unix
 
 WIN_LIBS = -lwinecrt0 -lucrtbase -lkernel32 -lntdll
@@ -122,38 +122,30 @@ $(FTD2XX_TARBALL):
 libs: $(UNIX_DIR)/lib$(LIBNAME).so $(i386_DIR)/lib$(LIBNAME).dll $(x86_64_DIR)/lib$(LIBNAME).dll
 defs: $(i386_DIR)/libftd2xx.def $(x86_64_DIR)/lib$(LIBNAME).def
 testapps: $(i386_DIR)/testapp.exe $(x86_64_DIR)/testapp.exe
-run_testapps:
+run_testapps:  $(i386_DIR)/testapp.exe $(x86_64_DIR)/testapp.exe $(i386_DIR)/lib$(LIBNAME).dll $(x86_64_DIR)/lib$(LIBNAME).dll
 	wine $(i386_DIR)/testapp.exe
 	wine $(x86_64_DIR)/testapp.exe
 
-$(FTD2XX_DIR)/libftd2xx.a $(FTD2XX_DIR)/ftd2xx.h: $(FTD2XX_TARBALL)
+$(FTD2XX_DIR)/ftd2xx.h $(FTD2XX_DIR)/libftd2xx.a: $(FTD2XX_TARBALL)
 	tar xzf $(FTD2XX_TARBALL)
-
-xftd2xx.h: $(FTD2XX_DIR)/ftd2xx.h
-	sed "s/WINAPI FT_/xFT_/g" $(FTD2XX_DIR)/ftd2xx.h >$@
-	#To get SetVIDPID
-	sed -i "s/FT_STATUS FT_/FT_STATUS xFT_/g" $@
-	sed -i "/^#include <windows\.h>.*/a typedef const char \*LPCTSTR;" $@
-
-libxftd2xx.a: $(FTD2XX_DIR)/libftd2xx.a xFTsyms.objcopy
-	objcopy --redefine-syms=xFTsyms.objcopy $(FTD2XX_DIR)/libftd2xx.a libxftd2xx.a
+	touch $(FTD2XX_TARBALL)
 
 $(i386_DIR) $(x86_64_DIR) $(UNIX_DIR):
 	mkdir -p $@
 
-$(UNIX_DIR)/unixlib.o: unixlib.c xftd2xx.h | $(UNIX_DIR)
+$(UNIX_DIR)/unixlib.o: unixlib.c $(FTD2XX_DIR)/ftd2xx.h | $(UNIX_DIR)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-$(UNIX_DIR)/lib$(LIBNAME).so: $(UNIX_DIR)/unixlib.o libxftd2xx.a
+$(UNIX_DIR)/lib$(LIBNAME).so: $(UNIX_DIR)/unixlib.o $(FTD2XX_DIR)/libftd2xx.a
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 # Windows libraries
 # 32 bit
-$(i386_DIR)/%.o: %.c | $(i386_DIR)
+$(i386_DIR)/%.o: %.c $(FTD2XX_DIR)/ftd2xx.h | $(i386_DIR)
 	$(i386_CC) -c -o $@ $< $(i386_CFLAGS)
 
 $(i386_DIR)/lib$(LIBNAME).a: lib$(LIBNAME).spec
-	winebuild -w --implib -o $@ -b i686-w64-mingw32 --export $^
+	winebuild -w --implib -o $@ -b i686-w64-mingw32 --export $<
 
 $(i386_DIR)/lib$(LIBNAME).dll: lib$(LIBNAME).spec $(addprefix $(i386_DIR)/, $(SRCS:.c=.o))
 	winegcc -o $@ $^ $(i386_LDFLAGS)
@@ -164,11 +156,11 @@ $(i386_DIR)/libftd2xx.def: lib$(LIBNAME).spec $(i386_DIR)/lib$(LIBNAME).dll
 	winebuild -b i686-w64-mingw32 -w --def -o $@ --export lib$(LIBNAME).spec
 
 # 64 bit
-$(x86_64_DIR)/%.o: %.c | $(x86_64_DIR)
+$(x86_64_DIR)/%.o: %.c $(FTD2XX_DIR)/ftd2xx.h | $(x86_64_DIR)
 	$(x86_64_CC) -c -o $@ $< $(x86_64_CFLAGS)
 
 $(x86_64_DIR)/lib$(LIBNAME).a: lib$(LIBNAME).spec
-	winebuild -w --implib -o $@ -b x86_64-w64-mingw32 --export $^
+	winebuild -w --implib -o $@ -b x86_64-w64-mingw32 --export $<
 
 $(x86_64_DIR)/lib$(LIBNAME).dll: lib$(LIBNAME).spec $(addprefix $(x86_64_DIR)/, $(SRCS:.c=.o))
 	winegcc -o $@ $^ $(x86_64_LDFLAGS)
@@ -197,7 +189,13 @@ install:: $(i386_DIR)/lib$(LIBNAME).dll $(x86_64_DIR)/lib$(LIBNAME).dll $(UNIX_D
 	install -m 644 $(INSTALL_PROGRAM_FLAGS) i386-windows/lib$(LIBNAME).dll $(WINEPREFIX)/drive_c/windows/syswow64/lib$(LIBNAME).dll
 	install -m 644 $(INSTALL_PROGRAM_FLAGS) x86_64-windows/lib$(LIBNAME).dll $(WINEPREFIX)/drive_c/windows/system32/lib$(LIBNAME).dll
 
+uninstall::
+	rm $(WINEPREFIX)/drive_c/windows/system32/lib$(LIBNAME).dll
+	rm $(WINEPREFIX)/drive_c/windows/syswow64/lib$(LIBNAME).dll
+	rm $(DESTDIR)$(WINELIB)/i386-windows/lib$(LIBNAME).dll
+	rm $(DESTDIR)$(WINELIB)/x86_64-windows/lib$(LIBNAME).dll
+	rm $(DESTDIR)$(WINELIB)/$(UNIX_DIR)/lib$(LIBNAME).so
+
 clean::
 	rm -rf $(i386_DIR) $(x86_64_DIR) $(UNIX_DIR) $(FTD2XX_DIR)
-	rm xftd2xx.h libxftd2xx.a
     #rm $(FTD2XX_TARBALL)

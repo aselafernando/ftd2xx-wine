@@ -29,9 +29,10 @@ NOTES:
 
 #include <stdarg.h>
 #include <stdint.h>
-#include <windef.h>
+//#include <windef.h> //Included in ftd2xx.h
 
-#include "xftd2xx.h"
+typedef const char                *LPCTSTR;
+#include "ftd2xx.h"
 
 #ifndef WINE_NTSTATUS_DECLARED
 #define WINE_NTSTATUS_DECLARED

@@ -89,10 +89,10 @@ def main():
                 unix_funcs_enum_string += "    unix_"+func['name']+",\n"
                 prototype = func['prototype'].replace("\t","    ").replace("FTD2XX_API ","")
                 ftd2xx_func_string = prototype+"{\n    struct prm_"+func['name']+" a = {"
-                unixlib_ext_func_string = "extern "+prototype.replace(" WINAPI","").replace(func['return_type']+" FT",func['return_type']+" xFT")+";"
+                unixlib_ext_func_string = "extern "+prototype.replace(" WINAPI","").replace(func['return_type']+" FT",func['return_type']+" FT")+";"
                 if func['return_type'] != "void":
-                    unixlib_func_string ="    a->ret = x"+func['name']+"("
-                    unixlib_wow64_func_string ="    a->ret = x"+func['name']+"("
+                    unixlib_func_string ="    a->ret = "+func['name']+"("
+                    unixlib_wow64_func_string ="    a->ret = "+func['name']+"("
                 else:
                     unixlib_func_string ="    x"+func['name']+"("
                     unixlib_wow64_func_string ="    x"+func['name']+"("

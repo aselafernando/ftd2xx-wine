@@ -71,17 +71,23 @@
 71 stdcall FT_GetDeviceInfoList(ptr ptr)
 72 stdcall FT_GetDeviceInfoDetail(long ptr ptr ptr ptr ptr ptr ptr)
 73 stdcall FT_SetDeadmanTimeout(ptr long)
-74 stdcall FT_GetDriverVersion(long ptr)
-75 stdcall FT_GetLibraryVersion(ptr)
-76 stub FT_W32_GetCommMask
-77 stdcall FT_Rescan()
-78 stub FT_Reload
-79 stub FT_GetComPortNumber
-80 stub FT_EE_ReadConfig(ptr ptr)
-81 stub FT_EE_WriteConfig
-82 stub FT_EE_ReadECC
-83 stdcall FT_GetQueueStatusEx(ptr ptr)
-84 stdcall FT_EEPROM_Read(ptr ptr long ptr ptr ptr ptr)
-85 stub FT_EEPROM_Program(ptr long ptr ptr ptr ptr)
-86 stdcall FT_ComPortIdle(ptr)
-87 stdcall FT_ComPortCancelIdle(ptr)
+74 stub FT_Finalise()
+75 stdcall FT_GetDriverVersion(long ptr)
+76 stdcall FT_GetLibraryVersion(ptr)
+77 stub FT_W32_GetCommMask
+78 stdcall FT_Rescan()
+79 stub FT_Reload
+80 stub FT_GetComPortNumber
+81 stub FT_EE_ReadConfig(ptr ptr)
+82 stub FT_EE_WriteConfig
+83 stub FT_EE_ReadECC
+84 stdcall FT_GetQueueStatusEx(ptr ptr)
+85 stdcall FT_EEPROM_Read(ptr ptr long ptr ptr ptr ptr)
+86 stub FT_EEPROM_Program(ptr long ptr ptr ptr ptr)
+87 stdcall FT_ComPortIdle(ptr)
+88 stdcall FT_ComPortCancelIdle(ptr)
+89 stdcall FT_VendorCmdGet( long long str long )
+90 stdcall FT_VendorCmdSet( long long str long )
+91 stdcall FT_VendorCmdGetEx( long long str long )
+92 stdcall FT_VendorCmdSetEx( long long str long )
+93 stub FT_Initialise()
