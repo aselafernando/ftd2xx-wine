@@ -219,7 +219,7 @@ $(i386_DIR)/lib$(LIBNAME).dll: lib$(LIBNAME).spec $(addprefix $(i386_DIR)/, $(SR
 	winebuild --builtin $@
 
 $(i386_DIR)/libftd2xx.def: lib$(LIBNAME).spec $(i386_DIR)/lib$(LIBNAME).dll
-	winebuild -b i686-w64-mingw32 -w --def -o $@ --export lib$(LIBNAME).spec
+	winebuild -b i686-windows -w --def -o $@ --export lib$(LIBNAME).spec
 
 # 64 bit
 $(x86_64_DIR)/%.o: %.c $(FTD2XX_DIR)/ftd2xx.h | $(x86_64_DIR)
@@ -235,7 +235,7 @@ $(x86_64_DIR)/lib$(LIBNAME).dll: lib$(LIBNAME).spec $(addprefix $(x86_64_DIR)/, 
 	winebuild --builtin $@
 
 $(x86_64_DIR)/libftd2xx.def: lib$(LIBNAME).spec $(x86_64_DIR)/lib$(LIBNAME).dll
-	winebuild -b x86_64-w64-mingw32 -w --def -o $@ --export lib$(LIBNAME).spec
+	winebuild -b x86_64-windows -w --def -o $@ --export lib$(LIBNAME).spec
 
 # 64 bit ARM
 $(aarch64_DIR)/%.o: %.c $(FTD2XX_DIR)/ftd2xx.h | $(aarch64_DIR)
