@@ -9,9 +9,8 @@ the need for multilib packages
 Wine headers are required (assumed to be at /opt/wine-stable/include/wine)
 Wine libraries assumed to be at /opt/wine-stable/lib/wine
 
-Compilers needed:
-gcc-mingw-w64-x86-64-win32 For Windows x64 compilation
-gcc-mingw-w64-i686-win32 For Windows x86 (WOW64) compilation
+Packages needed to build:
+clang lld
 
 Trace information is available under the channel ftd2xx ie WINEDEBUG=+ftd2xx
 
