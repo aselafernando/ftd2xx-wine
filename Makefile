@@ -5,9 +5,6 @@ WINEINC = $(WINEDIR)/include/wine
 FTD2XX_VER = 1.4.34
 LIBNAME = ftd2xx
 
-FTD2XX_TARBALL = libftd2xx-linux-x86_64-$(FTD2XX_VER).tgz
-FTD2XX_DIR = linux-x86_64
-
 .PHONY: all
 all: libs testapps defs
 
