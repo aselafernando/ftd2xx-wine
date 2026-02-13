@@ -2,23 +2,41 @@ WINEDIR = /opt/wine-stable
 WINELIB = $(WINEDIR)/lib/wine
 WINEINC = $(WINEDIR)/include/wine
 
-KARCH := $(shell uname -m)
+FTD2XX_VER = 1.4.34
+LIBNAME = ftd2xx
 
-FTD2XX_VER=1.4.34
+FTD2XX_TARBALL = libftd2xx-linux-x86_64-$(FTD2XX_VER).tgz
+FTD2XX_DIR = linux-x86_64
 
-ifeq ($(KARCH),aarch64)
-	FTD2XX_TARBALL = libftd2xx-linux-arm-v8-$(FTD2XX_VER).tgz
-	FTD2XX_DIR = linux-arm-v8
-else ifeq ($(KARCH),x86_64)
-	FTD2XX_TARBALL = libftd2xx-linux-x86_64-$(FTD2XX_VER).tgz
-	FTD2XX_DIR = linux-x86_64
+.PHONY: all
+all: libs testapps defs
+
+ifeq ($(WINE_UNIX_ARCH),)
+    ifeq ($(shell test -f "${WINELIB}/x86_64-unix/ntdll.so" && echo YES || echo NO),YES)
+        WINE_UNIX_ARCH = x86_64
+    else ifeq ($(shell test -f "${WINELIB}/aarch64-unix/ntdll.so" && echo YES || echo NO),YES)
+        WINE_UNIX_ARCH = aarch64
+    else
+        $(error Cannot find x86_64 or aarch64 WINE libraries in $(WINELIB))
+    endif
 endif
+
+ifeq ($(WINE_UNIX_ARCH),x86_64)
+    FTD2XX_TARBALL = libftd2xx-linux-x86_64-$(FTD2XX_VER).tgz
+    FTD2XX_DIR = linux-x86_64
+else ifeq ($(WINE_UNIX_ARCH),aarch64)
+    FTD2XX_TARBALL = libftd2xx-linux-arm-v8-$(FTD2XX_VER).tgz
+    FTD2XX_DIR = linux-arm-v8
+else
+    $(error Incompatible WINE architecture $(WINE_UNIX_ARCH). Only x86_64 and aarch64 are supported)
+endif
+
+$(FTD2XX_TARBALL):
+	wget https://ftdichip.com/wp-content/uploads/2025/11/$(FTD2XX_TARBALL)
 
 WINE_INCLUDES = -I$(WINEINC)/windows -I$(WINEINC)/msvcrt -I$(shell dirname $(WINEINC)) -I$(FTD2XX_DIR)
 
-LIBNAME = ftd2xx
-
-UNIX_DIR = $(KARCH)-unix
+UNIX_DIR = $(WINE_UNIX_ARCH)-unix
 CC = clang
 CFLAGS = \
     -m64 \
@@ -172,30 +190,29 @@ SRCS = ftd2xx.c
 
 WIN_LIBS = -lwinecrt0 -lucrtbase -lkernel32 -lntdll
 
-ifeq ($(KARCH),aarch64)
-	KARCH_DIR = $(aarch64_DIR)
-else ifeq ($(KARCH),x86_64)
-	KARCH_DIR = $(x86_64_DIR)
+ifeq ($(WINE_UNIX_ARCH),aarch64)
+	WINE_UNIX_ARCH_DIR = $(aarch64_DIR)
+else ifeq ($(WINE_UNIX_ARCH),x86_64)
+	WINE_UNIX_ARCH_DIR = $(x86_64_DIR)
 endif
 
-all: libs testapps defs
 
-$(FTD2XX_TARBALL):
-	wget https://ftdichip.com/wp-content/uploads/2025/11/$(FTD2XX_TARBALL)
+libs: $(UNIX_DIR)/lib$(LIBNAME).so $(i386_DIR)/lib$(LIBNAME).dll $(WINE_UNIX_ARCH_DIR)/lib$(LIBNAME).dll
 
-libs: $(UNIX_DIR)/lib$(LIBNAME).so $(i386_DIR)/lib$(LIBNAME).dll $(KARCH_DIR)/lib$(LIBNAME).dll
+defs: $(i386_DIR)/libftd2xx.def $(WINE_UNIX_ARCH_DIR)/lib$(LIBNAME).def
 
-defs: $(i386_DIR)/libftd2xx.def $(KARCH_DIR)/lib$(LIBNAME).def
-testapps: $(i386_DIR)/testapp.exe $(KARCH_DIR)/testapp.exe
-run_testapps:  $(i386_DIR)/testapp.exe $(KARCH_DIR)/testapp.exe $(i386_DIR)/lib$(LIBNAME).dll $(KARCH_DIR)/lib$(LIBNAME).dll
+testapps: $(i386_DIR)/testapp.exe $(WINE_UNIX_ARCH_DIR)/testapp.exe
+
+run_testapps:  $(i386_DIR)/testapp.exe $(WINE_UNIX_ARCH_DIR)/testapp.exe $(i386_DIR)/lib$(LIBNAME).dll $(WINE_UNIX_ARCH_DIR)/lib$(LIBNAME).dll
 	wine $(i386_DIR)/testapp.exe
-	wine $(KARCH_DIR)/testapp.exe
+	wine $(WINE_UNIX_ARCH_DIR)/testapp.exe
 
-$(FTD2XX_DIR)/ftd2xx.h $(FTD2XX_DIR)/libftd2xx.a: $(FTD2XX_TARBALL)
+$(FTD2XX_DIR)/ftd2xx.h $(FTD2XX_DIR)/libftd2xx.a &: $(FTD2XX_TARBALL)
 	tar xzf $(FTD2XX_TARBALL)
-	touch $(FTD2XX_TARBALL)
+	touch $(FTD2XX_DIR)/ftd2xx.h
+	touch $(FTD2XX_DIR)/libftd2xx.a
 
-$(i386_DIR) $(KARCH_DIR) $(UNIX_DIR):
+$(i386_DIR) $(WINE_UNIX_ARCH_DIR) $(UNIX_DIR):
 	mkdir -p $@
 
 $(UNIX_DIR)/unixlib.o: unixlib.c $(FTD2XX_DIR)/ftd2xx.h | $(UNIX_DIR)
@@ -266,27 +283,27 @@ $(x86_64_DIR)/testapp.exe: testapp.c $(x86_64_DIR) $(x86_64_DIR)/lib$(LIBNAME).a
 $(aarch64_DIR)/testapp.exe: testapp.c $(aarch64_DIR) $(aarch64_DIR)/lib$(LIBNAME).a
 	winegcc --target=aarch64-windows $< -o $@ -L$(aarch64_DIR) -l$(LIBNAME) -Wl,/safeseh:NO
 
-install:: $(i386_DIR)/lib$(LIBNAME).dll $(KARCH_DIR)/lib$(LIBNAME).dll $(UNIX_DIR)/lib$(LIBNAME).so
+install:: $(i386_DIR)/lib$(LIBNAME).dll $(WINE_UNIX_ARCH_DIR)/lib$(LIBNAME).dll $(UNIX_DIR)/lib$(LIBNAME).so
 	install -m 644 $(INSTALL_PROGRAM_FLAGS) $(i386_DIR)/lib$(LIBNAME).dll $(DESTDIR)$(WINELIB)/i386-windows/lib$(LIBNAME).dll
 	winebuild --builtin $(DESTDIR)$(WINELIB)/i386-windows/lib$(LIBNAME).dll
 
 	#install -m 644 $(INSTALL_PROGRAM_FLAGS) x86_64-windows/lib$(LIBNAME).dll $(DESTDIR)$(WINELIB)/x86_64-windows/lib$(LIBNAME).dll
 	#winebuild --builtin $(DESTDIR)$(WINELIB)/x86_64-windows/lib$(LIBNAME).dll
 
-	install -m 644 $(INSTALL_PROGRAM_FLAGS) $(KARCH_DIR)/lib$(LIBNAME).dll $(DESTDIR)$(WINELIB)/$(KARCH)-windows/lib$(LIBNAME).dll
-	winebuild --builtin $(DESTDIR)$(WINELIB)/$(KARCH)-windows/lib$(LIBNAME).dll
+	install -m 644 $(INSTALL_PROGRAM_FLAGS) $(WINE_UNIX_ARCH_DIR)/lib$(LIBNAME).dll $(DESTDIR)$(WINELIB)/$(WINE_UNIX_ARCH)-windows/lib$(LIBNAME).dll
+	winebuild --builtin $(DESTDIR)$(WINELIB)/$(WINE_UNIX_ARCH)-windows/lib$(LIBNAME).dll
 
 	install $(INSTALL_PROGRAM_FLAGS) $(UNIX_DIR)/lib$(LIBNAME).so $(DESTDIR)$(WINELIB)/$(UNIX_DIR)/lib$(LIBNAME).so
 
 	install -m 644 $(INSTALL_PROGRAM_FLAGS) $(i386_DIR)/lib$(LIBNAME).dll $(WINEPREFIX)/drive_c/windows/syswow64/lib$(LIBNAME).dll
 	#install -m 644 $(INSTALL_PROGRAM_FLAGS) x86_64-windows/lib$(LIBNAME).dll $(WINEPREFIX)/drive_c/windows/system32/lib$(LIBNAME).dll
-	install -m 644 $(INSTALL_PROGRAM_FLAGS) $(KARCH_DIR)/lib$(LIBNAME).dll $(WINEPREFIX)/drive_c/windows/system32/lib$(LIBNAME).dll
+	install -m 644 $(INSTALL_PROGRAM_FLAGS) $(WINE_UNIX_ARCH_DIR)/lib$(LIBNAME).dll $(WINEPREFIX)/drive_c/windows/system32/lib$(LIBNAME).dll
 
 uninstall::
 	rm $(WINEPREFIX)/drive_c/windows/system32/lib$(LIBNAME).dll
 	rm $(WINEPREFIX)/drive_c/windows/syswow64/lib$(LIBNAME).dll
 	rm $(DESTDIR)$(WINELIB)/i386-windows/lib$(LIBNAME).dll
-	rm $(DESTDIR)$(WINELIB)/$(KARCH)-windows/lib$(LIBNAME).dll
+	rm $(DESTDIR)$(WINELIB)/$(WINE_UNIX_ARCH)-windows/lib$(LIBNAME).dll
 	rm $(DESTDIR)$(WINELIB)/$(UNIX_DIR)/lib$(LIBNAME).so
 
 clean::
