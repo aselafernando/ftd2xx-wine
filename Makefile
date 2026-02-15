@@ -5,7 +5,7 @@ WINEINC = $(WINEDIR)/include/wine
 FTD2XX_VER = 1.4.34
 LIBNAME = ftd2xx
 
-.PHONY: all
+.PHONY: all libs defs testapps run_testapps
 all: libs testapps defs
 
 ifeq ($(WINE_UNIX_ARCH),)
