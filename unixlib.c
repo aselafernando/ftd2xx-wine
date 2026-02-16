@@ -354,14 +354,12 @@ NTSTATUS wow64_wrap_FT_GetComPortNumber(void *args) {
 
 NTSTATUS wrap_FT_GetStatus(void *args) {
     struct prm_FT_GetStatus *a = args;
-    printf("GetStatus\n");
     a->ret = FT_GetStatus(a->ftHandle, a->lpdwAmountInRxQueue, a->lpdwAmountInTxQueue, a->lpdwEventStatus);
     return STATUS_SUCCESS;
 }
 
 NTSTATUS wow64_wrap_FT_GetStatus(void *args) {
     struct p32_FT_GetStatus *a = args;
-    printf("WOW64 GetStatus\n");
     a->ret = FT_GetStatus((FT_HANDLE)ULongToPtr(a->ftHandle), (DWORD*)ULongToPtr(a->lpdwAmountInRxQueue), (DWORD*)ULongToPtr(a->lpdwAmountInTxQueue), (DWORD*)ULongToPtr(a->lpdwEventStatus));
     return STATUS_SUCCESS;
 }
