@@ -1,18 +1,22 @@
-WINEDIR = /opt/wine-stable
-WINELIB = $(WINEDIR)/lib/wine
-WINEINC = $(WINEDIR)/include/wine
-
 FTD2XX_VER = 1.4.34
 LIBNAME = ftd2xx
 
-.PHONY: all libs defs testapps run_testapps
+.PHONY: all libs defs testapps run_testapps install
 all: libs testapps defs
 
+ifeq ($(shell which wine),)
+    $(error Wine is not installed or not in PATH)
+else
+    WINEDIR := $(shell dirname $(shell dirname $(shell readlink -f $(shell which wine))))
+    WINELIB := $(WINEDIR)/lib/wine
+    WINEINC := $(WINEDIR)/include/wine
+endif
+
 ifeq ($(WINE_UNIX_ARCH),)
-    ifeq ($(shell test -f "${WINELIB}/x86_64-unix/ntdll.so" && echo YES || echo NO),YES)
-        WINE_UNIX_ARCH = x86_64
-    else ifeq ($(shell test -f "${WINELIB}/aarch64-unix/ntdll.so" && echo YES || echo NO),YES)
+    ifeq ($(shell test -f "${WINELIB}/aarch64-unix/ntdll.so" && echo YES || echo NO),YES)
         WINE_UNIX_ARCH = aarch64
+    else ifeq ($(shell test -f "${WINELIB}/x86_64-unix/ntdll.so" && echo YES || echo NO),YES)
+        WINE_UNIX_ARCH = x86_64
     else
         $(error Cannot find x86_64 or aarch64 WINE libraries in $(WINELIB))
     endif
@@ -200,9 +204,13 @@ defs: $(i386_DIR)/$(LIBNAME).def $(WINE_UNIX_ARCH_DIR)/$(LIBNAME).def
 
 testapps: $(i386_DIR)/testapp.exe $(WINE_UNIX_ARCH_DIR)/testapp.exe
 
-run_testapps:  $(i386_DIR)/testapp.exe $(WINE_UNIX_ARCH_DIR)/testapp.exe $(i386_DIR)/$(LIBNAME).dll $(WINE_UNIX_ARCH_DIR)/$(LIBNAME).dll
-	wine $(i386_DIR)/testapp.exe
-	wine $(WINE_UNIX_ARCH_DIR)/testapp.exe
+run_testapps: $(i386_DIR)/testapp.exe $(WINE_UNIX_ARCH_DIR)/testapp.exe $(i386_DIR)/$(LIBNAME).dll $(WINE_UNIX_ARCH_DIR)/$(LIBNAME).dll
+	@if [ -f "$(WINELIB)/$(UNIX_DIR)/$(LIBNAME).so" ]; then \
+		wine $(i386_DIR)/testapp.exe;\
+		wine $(WINE_UNIX_ARCH_DIR)/testapp.exe;\
+	else\
+		echo "$(WINELIB)/$(UNIX_DIR)/$(LIBNAME).so not found. Did you run make install?";\
+	fi
 
 $(FTD2XX_DIR)/ftd2xx.h $(FTD2XX_DIR)/libftd2xx.a &: $(FTD2XX_TARBALL)
 	tar xzf $(FTD2XX_TARBALL)
@@ -230,7 +238,7 @@ $(i386_DIR)/lib$(LIBNAME).a: $(LIBNAME).spec
 $(i386_DIR)/$(LIBNAME).dll: $(LIBNAME).spec $(addprefix $(i386_DIR)/, $(SRCS:.c=.o))
 	winegcc -o $@ $^ $(i386_LDFLAGS)
 	chmod -x $@
-	#winebuild --builtin $@
+	winebuild --builtin $@
 
 $(i386_DIR)/$(LIBNAME).def: $(LIBNAME).spec $(i386_DIR)/$(LIBNAME).dll
 	winebuild -b i686-windows -w --def -o $@ --export $<
@@ -246,7 +254,7 @@ $(x86_64_DIR)/lib$(LIBNAME).a: $(LIBNAME).spec
 $(x86_64_DIR)/$(LIBNAME).dll: $(LIBNAME).spec $(addprefix $(x86_64_DIR)/, $(SRCS:.c=.o))
 	winegcc -o $@ $^ $(x86_64_LDFLAGS)
 	chmod -x $@
-	#winebuild --builtin $@
+	winebuild --builtin $@
 
 $(x86_64_DIR)/$(LIBNAME).def: $(LIBNAME).spec $(x86_64_DIR)/$(LIBNAME).dll
 	winebuild -b x86_64-windows -w --def -o $@ --export $<
@@ -261,7 +269,7 @@ $(aarch64_DIR)/lib$(LIBNAME).a: $(LIBNAME).spec
 $(aarch64_DIR)/$(LIBNAME).dll: $(LIBNAME).spec $(addprefix $(aarch64_DIR)/, $(SRCS:.c=.o))
 	winegcc -o $@ $^ $(aarch64_LDFLAGS)
 	chmod -x $@
-	#winebuild --builtin $@
+	winebuild --builtin $@
 
 $(aarch64_DIR)/$(LIBNAME).def: $(LIBNAME).spec $(aarch64_DIR)/$(LIBNAME).dll
 	winebuild -b aarch64-windows -w --def -o $@ --export $(LIBNAME).spec
@@ -274,37 +282,36 @@ $(i386_DIR)/testapp.exe: testapp.c  $(i386_DIR) $(i386_DIR)/lib$(LIBNAME).a
 	#i686-w64-mingw32-gcc $< -o $@ -L$(i386_DIR) -l$(LIBNAME)
 
 $(x86_64_DIR)/testapp.exe: testapp.c $(x86_64_DIR) $(x86_64_DIR)/lib$(LIBNAME).a
-	winegcc --target=x86_64-windows $< -o $@ -L$(x86_64_DIR) -l$(LIBNAME) -Wl,/safeseh:NO
+	winegcc --target=x86_64-windows $< -o $@ -L$(x86_64_DIR) -l$(LIBNAME)
 	chmod +x $@
 	#winegcc --target=x86_64-w64-mingw32 $< -o $@ -L$(x86_64_DIR) -l$(LIBNAME)
 	#x86_64-w64-mingw32-gcc $< -o $@ -L$(x86_64_DIR) -l$(LIBNAME)
 
 $(aarch64_DIR)/testapp.exe: testapp.c $(aarch64_DIR) $(aarch64_DIR)/lib$(LIBNAME).a
-	winegcc --target=aarch64-windows $< -o $@ -L$(aarch64_DIR) -l$(LIBNAME) -Wl,/safeseh:NO
+	winegcc --target=aarch64-windows $< -o $@ -L$(aarch64_DIR) -l$(LIBNAME)
 	chmod +x $@
 
-install:: $(i386_DIR)/$(LIBNAME).dll $(WINE_UNIX_ARCH_DIR)/$(LIBNAME).dll $(UNIX_DIR)/$(LIBNAME).so
-	install -m 644 $(INSTALL_PROGRAM_FLAGS) $(i386_DIR)/$(LIBNAME).dll $(DESTDIR)$(WINELIB)/i386-windows/$(LIBNAME).dll
-	winebuild --builtin $(DESTDIR)$(WINELIB)/i386-windows/$(LIBNAME).dll
-
-	#install -m 644 $(INSTALL_PROGRAM_FLAGS) x86_64-windows/$(LIBNAME).dll $(DESTDIR)$(WINELIB)/x86_64-windows/$(LIBNAME).dll
-	#winebuild --builtin $(DESTDIR)$(WINELIB)/x86_64-windows/$(LIBNAME).dll
-
-	install -m 644 $(INSTALL_PROGRAM_FLAGS) $(WINE_UNIX_ARCH_DIR)/$(LIBNAME).dll $(DESTDIR)$(WINELIB)/$(WINE_UNIX_ARCH)-windows/$(LIBNAME).dll
-	winebuild --builtin $(DESTDIR)$(WINELIB)/$(WINE_UNIX_ARCH)-windows/$(LIBNAME).dll
-
-	install $(INSTALL_PROGRAM_FLAGS) $(UNIX_DIR)/$(LIBNAME).so $(DESTDIR)$(WINELIB)/$(UNIX_DIR)/$(LIBNAME).so
-
+#Installation Targets
+install: $(UNIX_DIR)/$(LIBNAME).so $(i386_DIR)/$(LIBNAME).dll $(WINE_UNIX_ARCH_DIR)/$(LIBNAME).dll
+	#.so Unix Library
+	install $(INSTALL_PROGRAM_FLAGS) $(UNIX_DIR)/$(LIBNAME).so $(WINELIB)/$(UNIX_DIR)/$(LIBNAME).so
+	#x86 Windows DLL
+	install -m 644 $(INSTALL_PROGRAM_FLAGS) $(i386_DIR)/$(LIBNAME).dll $(WINELIB)/$(i386_DIR)/$(LIBNAME).dll
+	#winebuild --builtin $(WINELIB)/$(i386_DIR)/$(LIBNAME).dll
+	#x64 Windows DLL
+	install -m 644 $(INSTALL_PROGRAM_FLAGS) $(WINE_UNIX_ARCH_DIR)/$(LIBNAME).dll $(WINELIB)/$(WINE_UNIX_ARCH_DIR)/$(LIBNAME).dll
+	#winebuild --builtin $(WINELIB)/$(WINE_UNIX_ARCH_DIR)/$(LIBNAME).dll
+	#Prefix Installation
 	install -m 644 $(INSTALL_PROGRAM_FLAGS) $(i386_DIR)/$(LIBNAME).dll $(WINEPREFIX)/drive_c/windows/syswow64/$(LIBNAME).dll
-	#install -m 644 $(INSTALL_PROGRAM_FLAGS) x86_64-windows/$(LIBNAME).dll $(WINEPREFIX)/drive_c/windows/system32/$(LIBNAME).dll
 	install -m 644 $(INSTALL_PROGRAM_FLAGS) $(WINE_UNIX_ARCH_DIR)/$(LIBNAME).dll $(WINEPREFIX)/drive_c/windows/system32/$(LIBNAME).dll
 
+#Uninstallation
 uninstall::
 	rm $(WINEPREFIX)/drive_c/windows/system32/$(LIBNAME).dll
 	rm $(WINEPREFIX)/drive_c/windows/syswow64/$(LIBNAME).dll
-	rm $(DESTDIR)$(WINELIB)/i386-windows/$(LIBNAME).dll
-	rm $(DESTDIR)$(WINELIB)/$(WINE_UNIX_ARCH)-windows/$(LIBNAME).dll
-	rm $(DESTDIR)$(WINELIB)/$(UNIX_DIR)/$(LIBNAME).so
+	rm $(WINELIB)/$(i386_DIR)/$(LIBNAME).dll
+	rm $(WINELIB)/$(WINE_UNIX_ARCH)-windows/$(LIBNAME).dll
+	rm $(WINELIB)/$(UNIX_DIR)/$(LIBNAME).so
 
 clean::
 	rm -rf $(i386_DIR) $(x86_64_DIR) $(aarch64_DIR) $(UNIX_DIR) $(FTD2XX_DIR)
