@@ -9,7 +9,7 @@ The DLL is invoked by native Windows binaries, but the actual implementation res
 
 * Cross-platform thunking: `ftd2xx.dll` is compiled as a Wine DLL (32 & 64 bit), which internally invokes a Unix `.so` using Wine internals.
 * Architecture support: Fully supports both `i386`, `x86_64`, and `aarch64` targets without the need for multilib on the host
-* Box64 & Hangover support: For running `i386` and `x86_64` Windows applications needing FTD2XX on `aarch64`
+* [Box64](https://github.com/ptitSeb/box64) & [Hangover](https://github.com/AndreRH/hangover) support: For running `i386` and `x86_64` Windows applications needing FTD2XX on `aarch64`
 
 # Requirements
  - Wine 9.0+ (Wow64)
@@ -42,23 +42,9 @@ To clean all generated files:
 make clean
 ```
 
-## File Structure and Purpose
-
-| Path                             | Description                                                           |
-| -------------------------------- | --------------------------------------------------------------------- |
-| `unixlib.c`                      | Unix-side implementation (.so file).  Conventional name for Wine.     |
-| `ftd2xx.spec`                    | Wine `.spec` file defining exported functions and calling convention. |
-| `ftd2xx.c`                       | DLL entry point and thunk setup, acting as Windows stub.              |
-| `testapp.c`                      | Native Windows test application.                                      |
-| `Makefile`                       | Handles all builds: `.so`, `.dll`, `.a`, `.exe`, install.             |
-| `i386-windows/`                  | Output directory for 32-bit Windows build artifacts.                  |
-| `[x86_64 or aarch64]-windows/ `  | Output directory for 64-bit WIndows build artifacts.                  |
-| `[x86_64 or aarch64]-unix/ `     | Output directory for Unix-side shared object.                         |
-| `gen.py`                         | Script used to help automate the creation of source code. Not used    |
-
 ## Test Output
 
-To run the 64 and 32 bit test applications
+To run the 32 and 64 bit test applications
 
 ```
 make run_testapps
@@ -101,6 +87,20 @@ where X is the number of devices plugged in
 
 If you get errors that ftd2xx.dll cannot be found, please ensure you run `make install` before trying `make run_testapps`
 
+## Options
+
+The VID:PID of the FTDI device can be specified using the FTDID environment variable. If no VID is specified it defaults to 0403.
+For example if looking for device 0403:6001 the following are equivalent
+
+```
+FTDID=0403:6001 wine testapp.exe
+```
+```
+FTDID=6001 wine testapp.exe
+```
+
+This will cause the DLL to call `FT_SetVIDPID(0x0403, 0x6001)` in DllMain upon `DLL_PROCESS_ATTACH`
+
 ## Debug & Trace
 
 Trace information is available under the channel ftd2xx
@@ -108,6 +108,20 @@ Trace information is available under the channel ftd2xx
 ```
 WINEDEBUG=+ftd2xx wine testapp.exe
 ```
+
+## File Structure and Purpose
+
+| Path                             | Description                                                           |
+| -------------------------------- | --------------------------------------------------------------------- |
+| `unixlib.c`                      | Unix-side implementation (.so file).  Conventional name for Wine.     |
+| `ftd2xx.spec`                    | Wine `.spec` file defining exported functions and calling convention. |
+| `ftd2xx.c`                       | DLL entry point and thunk setup, acting as Windows stub.              |
+| `testapp.c`                      | Native Windows test application.                                      |
+| `Makefile`                       | Handles all builds: `.so`, `.dll`, `.def`, `.a`, `.exe`, install.     |
+| `i386-windows/`                  | Output directory for 32-bit Windows build artifacts.                  |
+| `[x86_64 or aarch64]-windows/ `  | Output directory for 64-bit Windows build artifacts.                  |
+| `[x86_64 or aarch64]-unix/ `     | Output directory for Unix-side shared object.                         |
+| `gen.py`                         | Script used to help automate the creation of source code. Not used    |
 
 ## Wine Thunk Communication
 
@@ -124,7 +138,7 @@ Functions used:
 * `WINE_UNIX_CALL(func)`
   Macro that wraps thunked calls from Windows to Unix implementation.
 
-* Native FTD2XX library is built 64 bit.
+* Native FTD2XX library is 64 bit.
 * 32 bit functions (`__wine_unix_call_wow64_funcs`) uses different structure because of pointer size (32 vs 64 bit)
 * When 32 bit thunk DLL calls it's functions, the pointer size must be converted, then the value accessed as usual.
 
