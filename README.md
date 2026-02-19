@@ -44,17 +44,17 @@ make clean
 
 ## File Structure and Purpose
 
-| Path                         | Description                                                           |
-| ---------------------------- | --------------------------------------------------------------------- |
-| `unixlib.c`                  | Unix-side implementation (.so file).  Conventional name for Wine.     |
-| `ftd2xx.spec`                | Wine `.spec` file defining exported functions and calling convention. |
-| `ftd2xx.c`                   | DLL entry point and thunk setup, acting as Windows stub.              |
-| `testapp.c`                  | Native Windows test application.                                      |
-| `Makefile`                   | Handles all builds: `.so`, `.dll`, `.a`, `.exe`, install.             |
-| `i386-windows/`              | Output directory for 32-bit Windows build artifacts.                  |
-| `[x86_64|aarch64]-windows/`  | Output directory for 64-bit WIndows build artifacts.                  |
-| `[x86_64|aarch64]-unix/`     | Output directory for Unix-side shared object.                         |
-| `gen.py`                     | Script used to help automate the creation of source code. Not used    |
+| Path                             | Description                                                           |
+| -------------------------------- | --------------------------------------------------------------------- |
+| `unixlib.c`                      | Unix-side implementation (.so file).  Conventional name for Wine.     |
+| `ftd2xx.spec`                    | Wine `.spec` file defining exported functions and calling convention. |
+| `ftd2xx.c`                       | DLL entry point and thunk setup, acting as Windows stub.              |
+| `testapp.c`                      | Native Windows test application.                                      |
+| `Makefile`                       | Handles all builds: `.so`, `.dll`, `.a`, `.exe`, install.             |
+| `i386-windows/`                  | Output directory for 32-bit Windows build artifacts.                  |
+| `[x86_64 or aarch64]-windows/ `  | Output directory for 64-bit WIndows build artifacts.                  |
+| `[x86_64 or aarch64]-unix/ `     | Output directory for Unix-side shared object.                         |
+| `gen.py`                         | Script used to help automate the creation of source code. Not used    |
 
 ## Test Output
 
